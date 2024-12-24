@@ -1,0 +1,366 @@
+esphome:
+  name: d5
+  friendly_name: Amp_esp
+  includes:
+    - source/uart_read_line_sensor.h
+
+
+
+
+esp32:
+  board: esp32 wemos_d1_mini32  # Had issues with esp8266 freezing up 
+  framework:
+    type: arduino
+
+
+
+# Enable logging
+logger:
+  level: debug
+
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: # replace with yours
+
+ota:
+  - platform: esphome
+    password: # replace with yours
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  manual_ip:
+   # Set this to the IP you want on the ESP
+   static_ip: # replace with yours
+   # Set this to the IP address of the router. Often ends with .1
+   gateway: # replace with yours
+   subnet: # replace with yours
+
+
+uart:
+  id: uart_bus
+  tx_pin: GPIO1   # using UARB bus 0 gives the best result
+  rx_pin: GPIO3   #
+  baud_rate: 9600
+
+
+
+
+sensor:
+
+  - platform: template
+    id: AudiodB
+    name: "AudiodB level"
+    accuracy_decimals: 0
+    device_class: sound_pressure
+    state_class: measurement
+
+  - platform: wifi_signal
+    name: "Amp_esp WiFi Signal Sensor"
+    update_interval: 300s
+
+  - platform: template
+    id: targetdb
+    name: "Target volume Level"
+    internal: True
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+       name: "IP Address"   
+
+  - platform: custom
+    lambda: |-
+      auto state_sensor = new UartReadLineSensor(id(uart_bus));
+      App.register_component(state_sensor);
+      return {state_sensor};
+    text_sensors:
+      id: edgeA_state
+      name: State
+      on_value:
+          then:
+            lambda: |-
+              if (id(edgeA_state).state == "#04,01,00") {
+                id(Audiosource).publish_state("A1-Phono");
+              }  
+              if (id(edgeA_state).state == "#04,01,01") {
+                id(Audiosource).publish_state("A2-RCA");
+              }  
+              if (id(edgeA_state).state == "#04,01,02") {
+                id(Audiosource).publish_state("A3-CXN100");
+              }
+              if (id(edgeA_state).state == "#04,01,04") {
+                id(Audiosource).publish_state("D1-SPDIF");
+              }
+              if (id(edgeA_state).state == "#04,01,05") {
+                id(Audiosource).publish_state("D2-SPDIF");
+              }
+              if (id(edgeA_state).state == "#04,01,06") {
+                id(Audiosource).publish_state("D3-Coax");
+              }
+              if (id(edgeA_state).state == "#04,01,08") {
+                id(Audiosource).publish_state("D4-HDMI");
+              }
+              if (id(edgeA_state).state == "#04,01,14") {
+                id(Audiosource).publish_state("Bluetooth");
+              } 
+              if (id(edgeA_state).state == "#04,01,16") {
+                id(Audiosource).publish_state("USB");
+              }     
+
+
+
+
+  - platform: template
+    id: Audiosource  
+    name: "Audio source"
+
+switch:
+  - platform: template
+    id: edgeA_mute
+    name: Amplifier Mute
+    icon: mdi:volume-mute
+    lambda: |-
+      if (id(edgeA_state).state == "#02,03,1") {
+        return true;
+      } else if(id(edgeA_state).state == "#02,03,0") {
+        return false;
+      }
+      else {
+        return {};
+      }
+    turn_on_action:
+      then:
+        - logger.log:
+            format: "Send #1,04,1\r"
+        - uart.write: "\r#1,04,1\r"
+        - delay: 1s 
+        - uart.write: "\r#1,03\r"  #mute status 
+    turn_off_action:
+      then:
+        - logger.log:
+            format: "Send #1,04,0\r"
+        - uart.write: "\r#1,04,0\r"
+        - delay: 1s 
+        - uart.write: "\r#1,03\r"  #mute status 
+
+
+
+  - platform: template
+    id: edgeA_power
+    name: Amplifier Power
+    icon: mdi:amplifier
+    lambda: |-
+      if (id(edgeA_state).state == "#02,01,1") {
+        return true;
+      } else if(id(edgeA_state).state == "#02,01,0") {
+        return false;
+      }
+      else {
+        return {};
+      }
+    turn_on_action:
+      then:
+        - uart.write: "\r#1,02,1\r"  #Power on
+        - delay: 1s 
+        - uart.write: "\r#1,01\r" #get power status
+
+    turn_off_action:
+        then:
+          - uart.write: "\r#1,02,0\r" #power off, this will cause amp to power off if you reboot esp
+          - delay: 1s 
+          - uart.write: "\r#1,01\r" #get power status
+
+
+
+button:
+  - platform: restart
+    name: "Amp_esp Restart"
+
+  - platform: template
+    name: AMP_Powerstatus
+    on_press:
+      - uart.write: "\r#1,01\r" #get power status
+
+  - platform: template
+    name: AMP_Off
+    on_press:
+      - uart.write: "\r#1,02,0\r"
+
+  - platform: template
+    name: AMP_On
+    on_press:
+      - uart.write: "\r#1,02,1\r"
+
+  - platform: template
+    name: Source_update
+    on_press:
+      - uart.write: "\r#3,01\r"
+
+  - platform: template
+    name: Vol_level_update
+    id: vol_update
+    on_press:
+      - uart.write: "\r#1,05\r"   # Volume level update
+      - delay: 100ms
+      - lambda: |-
+            std::string sensor_output = id(edgeA_state).state.c_str();
+            size_t aud_pos = sensor_output.find("-");
+            if (aud_pos != std::string::npos) {
+              size_t start = aud_pos + 0; // Length of "audio "
+              size_t end = aud_pos + 3;
+              if (end != std::string::npos) {
+                std::string db = sensor_output.substr(start, end - start);
+                id(AudiodB).publish_state(static_cast<int>(atof(db.c_str())));
+              }
+            }
+
+  - platform: template
+    name: vol_up
+    on_press:
+      - uart.write: "\r#1,05\r"   # Volume level update
+      - delay: 200ms
+      - lambda: |-
+            std::string sensor_output = id(edgeA_state).state.c_str();
+            size_t aud_pos = sensor_output.find("-");
+            if (aud_pos != std::string::npos) {
+              size_t start = aud_pos + 0; // Length of "audio "
+              size_t end = aud_pos + 3;
+              if (end != std::string::npos) {
+                std::string db = sensor_output.substr(start, end - start);
+                id(AudiodB).publish_state(static_cast<int>(atof(db.c_str())));
+              }
+            }
+      
+      - delay: 100ms
+      - lambda: |-
+          int new_value = id(AudiodB).state + 3;
+          id(targetdb).publish_state(new_value);
+      - lambda: |-
+          char buffer[20];
+          sprintf(buffer, "\r#1,08,%d\r", static_cast<int>(id(targetdb).state));
+          id(uart_bus).write_str(buffer);
+      - delay: 100ms
+      - button.press: vol_update
+
+
+  - platform: template
+    name: vol_down
+    on_press:
+      - uart.write: "\r#1,05\r"   # Volume level update
+      - delay: 200ms
+      - lambda: |-
+            std::string sensor_output = id(edgeA_state).state.c_str();
+            size_t aud_pos = sensor_output.find("-");
+            if (aud_pos != std::string::npos) {
+              size_t start = aud_pos + 0; // Length of "audio "
+              size_t end = aud_pos + 3;
+              if (end != std::string::npos) {
+                std::string db = sensor_output.substr(start, end - start);
+                id(AudiodB).publish_state(static_cast<int>(atof(db.c_str())));
+              }
+            }
+      
+      - delay: 100ms
+      - lambda: |-
+          int new_value = id(AudiodB).state - 3;
+          id(targetdb).publish_state(new_value);
+      - lambda: |-
+          char buffer[20];
+          sprintf(buffer, "\r#1,08,%d\r", static_cast<int>(id(targetdb).state));
+          id(uart_bus).write_str(buffer);
+      - delay: 100ms
+      - button.press: vol_update
+
+  - platform: template
+    name: Next_input
+    on_press:
+      - uart.write: "\r#3,02\r"  
+
+  - platform: template
+    name: Previous_Input
+    on_press:
+      - uart.write: "\r#3,03\r"        
+
+  - platform: template
+    name: Get_protocl_Ver
+    on_press:
+      - uart.write: "\r#13,01\r"     
+
+  - platform: template
+    name: Get_Firmware_Ver
+    on_press:
+      - uart.write: "\r#13,02\r"      
+
+  - platform: template
+    name: A3-CXN100
+    on_press:
+      - uart.write: "\r#3,04,02\r"        
+
+  - platform: template
+    name: A1-Phono
+    on_press:
+      - uart.write: "\r#3,04,00\r" 
+
+  - platform: template
+    name: A2-RCA
+    on_press:
+      - uart.write: "\r#3,04,01\r" 
+
+  - platform: template
+    name: D1-SPDIF
+    on_press:
+      - uart.write: "\r#3,04,04\r" 
+
+  - platform: template
+    name: D2-SPDIF
+    on_press:
+      - uart.write: "\r#3,04,05\r" 
+
+  - platform: template
+    name: D3-Coax
+    on_press:
+      - uart.write: "\r#3,04,06\r" 
+
+  - platform: template
+    name: D4-HDMI
+    on_press:
+      - uart.write: "\r#3,04,08\r" 
+
+  - platform: template
+    name: Bluetooth
+    on_press:
+      - uart.write: "\r#3,04,14\r" 
+
+  - platform: template
+    name: D5-USB
+    on_press:
+      - uart.write: "\r#3,04,16\r" 
+
+  - platform: template
+    name: Vol54
+    on_press:
+      - uart.write: "\r#1,08,-54\r"    
+
+  - platform: template
+    name: Vol40
+    on_press:
+      - uart.write: "\r#1,08,-40\r"  
+
+  - platform: template
+    name: Vol30
+    on_press:
+      - uart.write: "\r#1,08,-30\r"  
+
+
+
+interval:
+  - interval: 60s
+    then:
+      - uart.write: "\r#3,01\r" #Source update
+      - delay: 1s
+      - uart.write: "\r#1,01\r" #get power status
+      - delay: 1s
+      - uart.write: "\r#1,05\r"   #Volume level update

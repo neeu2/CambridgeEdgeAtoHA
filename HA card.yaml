@@ -1,0 +1,181 @@
+type: vertical-stack
+cards:
+  - type: media-control
+    entity: media_player.cxn100
+  - square: false
+    type: grid
+    cards:
+      - show_name: true
+        show_icon: true
+        type: button
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.amp_esp_amp_on
+          data: {}
+        theme: Dark Pink
+        name: Edge A Power
+        entity: switch.amp_esp_amplifier_power
+        icon: mdi:power
+        hold_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.amp_esp_amp_off
+        show_state: true
+      - show_name: true
+        show_icon: true
+        type: button
+        tap_action:
+          action: toggle
+        entity: button.amp_esp_vol_down
+        theme: Dark Turqoise
+        icon: mdi:volume-minus
+        name: Volume -
+      - show_name: true
+        show_icon: true
+        type: button
+        tap_action:
+          action: toggle
+        theme: Dark Orange
+        entity: button.amp_esp_vol_up
+        icon: mdi:volume-plus
+        name: Volume +
+  - square: false
+    type: grid
+    cards:
+      - show_name: true
+        show_icon: true
+        type: button
+        tap_action:
+          action: toggle
+        show_state: false
+        theme: Dark Yellow
+        entity: button.amp_esp_previous_input
+        name: Input -
+      - show_name: true
+        show_icon: true
+        type: button
+        tap_action:
+          action: toggle
+        theme: Dark Yellow
+        entity: button.amp_esp_next_input
+        name: Input +
+      - show_name: true
+        show_icon: true
+        type: button
+        tap_action:
+          action: toggle
+        theme: Dark Pink
+        name: Mute
+        show_state: true
+        hold_action:
+          action: perform-action
+          perform_action: switch.toggle
+          target:
+            entity_id: switch.amp_esp_amplifier_mute
+        entity: switch.amp_esp_amplifier_mute
+  - square: false
+    type: grid
+    cards:
+      - show_name: true
+        show_icon: true
+        type: button
+        tap_action:
+          action: toggle
+        theme: teal
+        entity: button.amp_esp_a3_cxn100
+        name: CXN100
+      - show_name: true
+        show_icon: true
+        type: button
+        tap_action:
+          action: toggle
+        entity: button.amp_esp_a1_phono
+        name: Phono
+      - show_name: true
+        show_icon: true
+        type: button
+        tap_action:
+          action: toggle
+        theme: transparentblue
+        entity: button.amp_esp_bluetooth
+        name: Bluetooth
+        icon: mdi:bluetooth
+      - show_name: true
+        show_icon: true
+        type: button
+        tap_action:
+          action: perform-action
+          perform_action: automation.trigger
+          target:
+            entity_id: automation.cxn100_cd_play
+        theme: teal
+        entity: automation.cxn100_cd_play
+        icon: mdi:disc
+        name: CD
+    columns: 4
+  - square: false
+    type: grid
+    cards:
+      - show_name: true
+        show_icon: true
+        type: button
+        tap_action:
+          action: perform-action
+          perform_action: media_player.select_source
+          target:
+            entity_id: media_player.cxn100
+          data:
+            source: TIDAL Connect
+        theme: Dark Green
+        name: Tidal
+        icon: mdi:music
+      - show_name: true
+        show_icon: true
+        type: button
+        tap_action:
+          action: perform-action
+          perform_action: media_player.select_source
+          target:
+            device_id: 026a63e64a6297fe89c7355f18145475
+          data:
+            source: Internet Radio
+        name: Internet Radio
+        icon: mdi:radio-tower
+        theme: Dark Blue
+      - show_name: true
+        show_icon: true
+        type: button
+        tap_action:
+          action: perform-action
+          perform_action: media_player.select_source
+          target:
+            device_id: 026a63e64a6297fe89c7355f18145475
+          data:
+            source: Google Cast
+        theme: Dark Orange
+        name: Chromecast
+        icon: mdi:cast
+      - show_name: true
+        show_icon: true
+        type: button
+        tap_action:
+          action: perform-action
+          perform_action: media_player.select_source
+          target: {}
+          data:
+            source: USB Audio
+        theme: Dark Pink
+        entity: automation.cxn100_cd_play
+        icon: mdi:usb
+        name: USB
+    columns: 4
+  - type: horizontal-stack
+    cards:
+      - type: tile
+        entity: sensor.amp_esp_audio_source
+      - type: tile
+        entity: sensor.amp_esp_audiodb_level
+        name: Audio Level dB
