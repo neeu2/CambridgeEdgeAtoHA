@@ -4,3 +4,4 @@ As EdgeA as well as some of the other CambridgeAudio amps do not provide any net
 https://github.com/joriskdzaack/cambridgeaudiocxa81-remote
 
 For physical connection you will need a TTL To Rs232 male Serial DB9, please refer to attached pdf
+[Setup details.pdf](https://github.com/user-attachments/files/18238077/Setup.details.pdf)
