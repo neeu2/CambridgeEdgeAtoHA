@@ -1,4 +1,4 @@
-# CambridgeEdgeAtoHA
+# CambridgeAudio EdgeA to Home Assistant
 Cambridge Audio EdgeA amp integration to Homeassistant vis RS232 and esp8266
 As EdgeA as well as some of the other CambridgeAudio amps do not provide any network connectivity, I've used this as my starting point and added more functionality, including volume control
 https://github.com/joriskdzaack/cambridgeaudiocxa81-remote
